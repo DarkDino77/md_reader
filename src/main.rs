@@ -1,56 +1,80 @@
 mod note;
 mod ui;
 
+use std::f32;
+
 use eframe::egui;
-use egui::epaint::textures;
+use egui::FontId;
 
 fn main() {
     let native_options = eframe::NativeOptions::default();
-    eframe::run_native(
+    let _ = eframe::run_native(
         "test",
         native_options,
         Box::new(|cc| Ok(Box::new(MyEguiApp::new(cc)))),
     );
 }
 
+struct Document {
+    title: String,
+    content: String,
+    path: Option<std::path::PathBuf>,
+    font_size: f32,
+}
+
+impl Default for Document {
+    fn default() -> Self {
+        Self {
+            title: "Untitiled".to_string(),
+            content: String::new(),
+            path: None,
+            font_size: 16.0,
+        }
+    }
+}
+
 #[derive(Default)]
 struct MyEguiApp {
-    counter: i32,
-    text: String,
+    document: Document,
 }
 
 impl MyEguiApp {
-    fn new(cc: &eframe::CreationContext<'_>) -> Self {
+    fn new(_cc: &eframe::CreationContext<'_>) -> Self {
         Self::default()
     }
 }
 
 impl eframe::App for MyEguiApp {
-    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-        handle_input(ctx, &mut self.text);
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        handle_input(ctx, &mut self.document.content);
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("Hello world!");
-            ui_counter(ui, &mut self.counter);
-            display_text(ui, &self.text);
+            ui.heading(&mut self.document.title.clone());
+
+            ui.add(
+                egui::TextEdit::multiline(&mut self.document.content)
+                    .font(FontId::proportional(self.document.font_size))
+                    .desired_width(f32::INFINITY),
+            );
+
+            ui_font_size(ui, &mut self.document.font_size);
+            ui_open_file(ui, &mut self.document);
+
+            //display_text(ui, &self.text, &self.ui_font_size);
         });
     }
 }
 
-fn ui_counter(ui: &mut egui::Ui, counter: &mut i32) {
+fn ui_font_size(ui: &mut egui::Ui, ui_font_size: &mut f32) {
     ui.horizontal(|ui| {
         if ui.button("-").clicked() {
-            *counter -= 1;
+            *ui_font_size = (*ui_font_size - 1.0).max(6.0);
         }
-        ui.label(counter.to_string());
+        ui.label(ui_font_size.to_string());
         if ui.button("+").clicked() {
-            *counter += 1;
+            *ui_font_size += 1.0;
         }
     });
-}
-
-fn display_text(ui: &mut egui::Ui, text: &String) {
-    ui.horizontal(|ui| ui.label(text));
 }
 
 fn handle_input(ctx: &egui::Context, text: &mut String) {
@@ -81,4 +105,27 @@ fn handle_input(ctx: &egui::Context, text: &mut String) {
             }
         }
     });
+}
+
+fn open_file(document: &mut Document) {
+    if let Some(path) = rfd::FileDialog::new().pick_file() {
+        if let Ok(content) = std::fs::read_to_string(&path) {
+            document.content = content;
+            document.title = path_to_title(&path);
+            document.path = Some(path);
+        }
+    }
+}
+
+fn path_to_title(path: &std::path::PathBuf) -> String {
+    path.file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("Untiteld")
+        .to_string()
+}
+
+fn ui_open_file(ui: &mut egui::Ui, document: &mut Document) {
+    if ui.button("Open file").clicked() {
+        open_file(document);
+    }
 }
