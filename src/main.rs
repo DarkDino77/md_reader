@@ -48,26 +48,30 @@ impl MyEguiApp {
 
 impl eframe::App for MyEguiApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        // handle_input(ctx, &mut self.document.content);
+        handle_input(ctx);
 
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading(&mut self.document.title.clone());
             ui_switch_to_md(ui, &mut self.md_display);
-            if self.md_display {
-                let mut cache = CommonMarkCache::default();
-                CommonMarkViewer::new().show(ui, &mut cache, &self.document.content);
-            } else {
-                ui.add(
-                    egui::TextEdit::multiline(&mut self.document.content)
-                        .font(FontId::proportional(self.document.font_size))
-                        .desired_width(f32::INFINITY),
-                );
-            }
-
             ui_font_size(ui, &mut self.document.font_size);
             ui_open_file(ui, &mut self.document);
 
-            //display_text(ui, &self.text, &self.ui_font_size);
+            ui.separator();
+
+            egui::ScrollArea::vertical()
+                .auto_shrink([false, false])
+                .show(ui, |ui| {
+                    if self.md_display {
+                        let mut cache = CommonMarkCache::default();
+                        CommonMarkViewer::new().show(ui, &mut cache, &self.document.content);
+                    } else {
+                        ui.add(
+                            egui::TextEdit::multiline(&mut self.document.content)
+                                .font(FontId::proportional(self.document.font_size))
+                                .desired_width(f32::INFINITY),
+                        );
+                    }
+                });
         });
     }
 }
@@ -99,30 +103,16 @@ fn ui_switch_to_md(ui: &mut egui::Ui, md_display: &mut bool) {
 
 fn ui_display_md() {}
 
-fn handle_input(ctx: &egui::Context, text: &mut String) {
+fn handle_input(ctx: &egui::Context) {
     ctx.input(|i| {
         for event in &i.events {
             match event {
-                egui::Event::Text(t) => text.push_str(t),
-                egui::Event::Key {
-                    key: egui::Key::Backspace,
-                    pressed: true,
-                    ..
-                } => {
-                    text.pop();
-                }
                 egui::Event::Key {
                     key: egui::Key::Escape,
                     pressed: true,
                     ..
                 } => std::process::exit(0),
-                egui::Event::Key {
-                    key: egui::Key::Enter,
-                    pressed: true,
-                    ..
-                } => {
-                    text.push_str("\n");
-                }
+
                 _ => {}
             }
         }
